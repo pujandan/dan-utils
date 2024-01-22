@@ -8,10 +8,7 @@ class FileUtil {
     return await file.readAsString();
   }
 
-  static Future<void> readQuery(
-    FileSystemEntity file, {
-    required Function(AppQuery appQuery) result,
-  }) async {
+  static Future<AppQuery?> readQuery(FileSystemEntity file) async {
     try {
       if (file is File && file.path.endsWith('.sql')) {
         String content = await FileUtil.readAsString(file.path);
@@ -21,35 +18,36 @@ class FileUtil {
 
         String upMatch = upQuery.firstMatch(content)?.group(1) ?? '';
         String downMatch = downQuery.firstMatch(content)?.group(1) ?? '';
-
-        result(AppQuery(up: upMatch, down: downMatch));
+        String fileName = file.path.split("/").last;
+        return AppQuery(fileName: fileName, up: upMatch, down: downMatch);
       } else {
         throw Exception("The file is not a SQL script.");
       }
     } on Exception catch (e) {
       print("readQuery ${file.path} ${e.toString()}");
+      return null;
     }
   }
 
-  static Future<void> readQueries(
-    List<FileSystemEntity> files, {
-    required Function(List<AppQuery> queries) result,
-  }) async {
+  static Future<List<AppQuery>> readQueries(
+      List<FileSystemEntity> files) async {
     try {
       if (files.isNotEmpty) {
         List<AppQuery> queries = [];
         files.sort((a, b) =>
             a.uri.pathSegments.last.compareTo(b.uri.pathSegments.last));
         for (var file in files) {
-          await FileUtil.readQuery(file,
-              result: (appQuery) => queries.add(appQuery));
+          AppQuery? appQuery = await FileUtil.readQuery(file);
+          if (appQuery != null) queries.add(appQuery);
         }
-        result(queries);
+        return queries;
       } else {
         Exception("Files does not exist.");
+        return [];
       }
     } on Exception catch (e) {
       print("readQueries ${e.toString()}");
+      return [];
     }
   }
 
